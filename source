@@ -1,0 +1,55 @@
+import tensorflow as tf
+from tensorflow.keras.layers import Embedding, LSTM, Dense
+from tensorflow.keras.models import Sequential
+
+# Sample text data
+text = "This is a sample text for demonstration."
+tokenizer = tf.keras.preprocessing.text.Tokenizer(char_level=True)
+tokenizer.fit_on_texts(text)
+vocab_size = len(tokenizer.word_index) + 1
+sequences = tokenizer.texts_to_sequences([text])[0]
+
+# Create input and target sequences
+seq_length = 5
+input_seqs = []
+target_seqs = []
+for i in range(0, len(sequences) - seq_length):
+    input_seq = sequences[i:i + seq_length]
+    target_seq = sequences[i + seq_length]
+    input_seqs.append(input_seq)
+    target_seqs.append(target_seq)
+
+# Convert to numpy arrays
+import numpy as np
+input_seqs = np.array(input_seqs)
+target_seqs = np.array(target_seqs)
+target_seqs = tf.keras.utils.to_categorical(target_seqs, num_classes=vocab_size)
+
+# Define the model
+model = Sequential([
+    Embedding(vocab_size, 16, input_length=seq_length),
+    LSTM(128),
+    Dense(vocab_size, activation='softmax')
+])
+
+# Compile and train the model
+model.compile(optimizer='adam', loss='categorical_crossentropy')
+model.fit(input_seqs, target_seqs, epochs=50)
+
+# Text generation
+def generate_text(seed_text, length):
+    generated_text = seed_text
+    for _ in range(length):
+        seq = tokenizer.texts_to_sequences([generated_text[-seq_length:]])[0]
+        seq = np.array(seq)
+        if len(seq) < seq_length:
+            seq = np.pad(seq, (seq_length - len(seq), 0), 'constant')
+        pred = model.predict(np.array([seq]), verbose = 0)
+        pred_index = np.argmax(pred)
+        pred_char = tokenizer.index_word[pred_index]
+        generated_text += pred_char
+    return generated_text
+
+seed_text = "This"
+generated_text = generate_text(seed_text, 20)
+print(generated_text)
